@@ -1,0 +1,17 @@
+@import 'tailwindcss';
+
+@font-face {
+    font-family: 'Noto Sans';
+    src: url('/fonts/NotoSans-VariableFont_wdth,wght.woff2') format('woff2-variations');
+    /* Specify the supported range for weight and width */
+    font-weight: 100 900;
+    font-stretch: 62.5% 100%;
+    /* Corresponds to 'wdth' axis range */
+    font-style: normal;
+}
+
+body {
+    font-family: 'Noto Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
