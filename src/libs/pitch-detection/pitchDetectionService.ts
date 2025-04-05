@@ -182,7 +182,12 @@ export class PitchDetectionService {
         try {
             // console.log("Setting up AudioWorklet (PitchForwarderProcessor)...");
             try {
-                const processorUrl = new URL('./pitchForwarderProcessor.ts?url', import.meta.url);
+                // **** Manually construct URL relative to base path for pre-compiled JS ****
+                const baseUrl = import.meta.env.BASE_URL || '/';
+                // Update path based on tsc output location within public dir
+                const processorPath = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}libs/pitch-detection/pitchForwarderProcessor.js`;
+                const processorUrl = new URL(processorPath, window.location.origin);
+
                 console.log('[PitchDetectionService] Attempting to load worklet module from URL:', processorUrl.toString());
                 await this.audioContext.audioWorklet.addModule(processorUrl.toString());
                 console.log("[PitchDetectionService] PitchForwarderProcessor module added successfully (or already added).");
