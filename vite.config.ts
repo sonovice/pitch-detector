@@ -15,5 +15,9 @@ export default defineConfig(({ command }) => {
     build: {
       target: 'esnext',
     },
+    worker: {
+      format: 'es', // Explicitly set format for modern compatibility
+      // rollupOptions can be added here if needed later
+    }
   };
 });
