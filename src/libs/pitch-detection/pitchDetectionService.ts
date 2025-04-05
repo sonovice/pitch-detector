@@ -183,14 +183,16 @@ export class PitchDetectionService {
             // console.log("Setting up AudioWorklet (PitchForwarderProcessor)...");
             try {
                 const processorUrl = new URL('./pitchForwarderProcessor.ts', import.meta.url);
+                console.log('[PitchDetectionService] Attempting to load worklet module from URL:', processorUrl.toString());
                 await this.audioContext.audioWorklet.addModule(processorUrl.toString());
-                // console.log("PitchForwarderProcessor module added.");
+                console.log("[PitchDetectionService] PitchForwarderProcessor module added successfully (or already added).");
             } catch (addError: any) {
                 // Ignore error if it's specifically about the module already being added
                 if (!addError.message.includes('already been added')) {
+                    console.error('[PitchDetectionService] Error during addModule:', addError);
                     throw addError; // Re-throw other errors
                 }
-                // console.log("PitchForwarderProcessor module likely already added.");
+                console.log("[PitchDetectionService] PitchForwarderProcessor module likely already added.");
             }
 
             this.pitchForwarderNode = new AudioWorkletNode(this.audioContext, 'pitch-forwarder-processor');
