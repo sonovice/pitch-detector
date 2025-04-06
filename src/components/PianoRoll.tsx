@@ -85,6 +85,7 @@ const PianoRoll: Component<PianoRollProps> = (props) => {
         const blackKeyColor = "#4a5568";     // Medium-dark gray
         const lightGridLineColor = "#3a475a"; // Slightly lighter than bg
         const darkGridLineColor = "#4a5568";  // Same as black keys, for C lines
+        const tuningLineColor = "#3a475a88";
 
         // Define the color scale for note tuning
         const tuningColorScale = d3.scaleLinear<string>()
@@ -288,7 +289,7 @@ const PianoRoll: Component<PianoRollProps> = (props) => {
                 const tuningLineY = h > 0 ? centerY - (centsOffset / 50) * (h / 2) : centerY;
                 return tuningLineY;
             })
-            .attr("stroke", lightGridLineColor)
+            .attr("stroke", tuningLineColor)
             .attr("stroke-width", 1)
             .attr("pointer-events", "none"); // Prevent line from interfering with tooltip hover
 
