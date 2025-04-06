@@ -31,7 +31,7 @@ const DebugOverlay: Component<DebugOverlayProps> = (props) => {
     };
 
     return (
-        <div class="absolute top-4 right-4 z-20 p-4 rounded-lg shadow-xl bg-gray-900/80 text-gray-200 text-xs backdrop-blur-md border border-gray-700 max-w-xs w-full max-h-[85vh] overflow-y-auto">
+        <div class="absolute top-4 left-20 z-20 p-4 rounded-lg shadow-xl bg-gray-900/70 text-gray-200 text-xs backdrop-blur-lg border border-gray-700 max-w-xs w-full max-h-[85vh] overflow-y-auto">
             <h3 class="text-sm font-semibold mb-3 text-gray-100 border-b border-gray-700 pb-1">Hyperparameters</h3>
             <div class="space-y-4">
 
