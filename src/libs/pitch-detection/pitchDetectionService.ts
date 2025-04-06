@@ -1,3 +1,5 @@
+import type { Accessor } from 'solid-js';
+
 const MODEL_SAMPLE_RATE = 16000;
 // No longer need ScriptProcessorNode buffer size
 // const SCRIPT_PROCESSOR_BUFFER_SIZE = 1024;
@@ -15,13 +17,13 @@ interface PitchDetectionServiceOptions {
     /** 
      * EMA smoothing factor (0 to 1). 0 = No smoothing. Higher values (~0.9) = More smoothing. Defaults to 0.
      */
-    smoothingFactor?: number;
+    smoothingFactor?: Accessor<number>;
     /** 
      * Threshold (in cents) for resetting smoothing. If the difference between the new raw pitch
      * and the current smoothed pitch exceeds this value, the smoothing is reset to the new pitch.
      * Helps react faster to large jumps. Defaults to 100 cents (1 semitone).
      */
-    resetThresholdInCents?: number;
+    resetThresholdInCents?: Accessor<number>;
 }
 
 // Helper to calculate cents difference between two frequencies
@@ -56,9 +58,9 @@ export class PitchDetectionService {
     /** Indicates if the service is currently capturing and processing audio. */
     public isProcessing: boolean = false;
 
-    // Smoothing
-    private smoothingFactorInternal: number = 0.0;
-    private resetThresholdInCents: number = 100.0; // Default threshold: 1 semitone
+    // Smoothing - Make these accessors from options
+    private smoothingFactor: Accessor<number> = () => 0.0; // Default accessor
+    private resetThresholdInCents: Accessor<number> = () => 100.0; // Default accessor
     private smoothedPitch: number | null = null;
 
     /**
@@ -73,13 +75,15 @@ export class PitchDetectionService {
         this.onError = onError;
         this.onModelLoaded = onModelLoaded;
 
+        // Store the accessors directly, using defaults if not provided
         if (options?.smoothingFactor !== undefined) {
-            this.smoothingFactorInternal = Math.max(0, Math.min(0.999, options.smoothingFactor));
+            this.smoothingFactor = options.smoothingFactor;
         }
         if (options?.resetThresholdInCents !== undefined) {
-            this.resetThresholdInCents = Math.max(0, options.resetThresholdInCents); // Ensure positive threshold
+            this.resetThresholdInCents = options.resetThresholdInCents;
         }
-        console.log(`[PitchDetectionService] Smoothing factor: ${this.smoothingFactorInternal}, Reset Threshold: ${this.resetThresholdInCents} cents`);
+        // Log the initial values from the accessors
+        console.log(`[PitchDetectionService] Initial Smoothing factor: ${this.smoothingFactor()}, Reset Threshold: ${this.resetThresholdInCents()} cents`);
     }
 
     /**
@@ -114,7 +118,10 @@ export class PitchDetectionService {
                     const detectedPitch = data.pitch as number | null;
                     const confidence = data.confidence as number;
 
-                    const alpha = 1.0 - this.smoothingFactorInternal;
+                    // Read current smoothing values from accessors
+                    const currentSmoothing = Math.max(0, Math.min(0.999, this.smoothingFactor()));
+                    const alpha = 1.0 - currentSmoothing;
+                    const currentResetThreshold = Math.max(0, this.resetThresholdInCents());
 
                     if (detectedPitch === null) {
                         this.smoothedPitch = null;
@@ -124,7 +131,8 @@ export class PitchDetectionService {
                             ? Math.abs(getCentsDifference(detectedPitch, this.smoothedPitch))
                             : Infinity; // Treat first pitch or reset as infinite difference
 
-                        if (centsDiff > this.resetThresholdInCents || this.smoothedPitch === null || alpha === 1.0) {
+                        // Use current reset threshold from accessor
+                        if (centsDiff > currentResetThreshold || this.smoothedPitch === null || alpha === 1.0) {
                             // Reset or first pitch or no smoothing
                             this.smoothedPitch = detectedPitch;
                         } else {

@@ -11,6 +11,7 @@ import {
 import { PitchDetectionService } from '../libs/pitch-detection/pitchDetectionService';
 import PianoRoll from '../components/PianoRoll';
 import ControlBar from '../components/demo/ControlBar';
+import DebugOverlay from '../components/debug/DebugOverlay';
 import {
     getNoteDetails,
 } from '../utils/midiUtils';
@@ -69,6 +70,10 @@ const Demo: Component = () => {
     const [pixelsPerSecond, setPixelsPerSecond] = createSignal(INITIAL_PIXELS_PER_SECOND);
     // --- End add state ---
 
+    // --- Add state for overlay ---
+    const [showDebugOverlay, setShowDebugOverlay] = createSignal(false);
+    // --- End add state ---
+
     // State for tracking pause time
     const [pauseOffset, setPauseOffset] = createSignal(0);
     const [pauseStartTime, setPauseStartTime] = createSignal(0); // Timestamp when pause started
@@ -76,11 +81,23 @@ const Demo: Component = () => {
     let serviceInstance: PitchDetectionService | null = null;
 
     // --- Constants for Segmentation ---
-    const CONFIDENCE_THRESHOLD = 0.65;
-    const PITCH_CHANGE_THRESHOLD_SEMITONES = 0.75;
-    const MIN_NOTE_DURATION_MS = 80;
-    const MAX_GAP_MS_FOR_MERGE = 100;
-    const PITCH_DIFF_FOR_MERGE_SEMITONES = 0.5;
+    // const CONFIDENCE_THRESHOLD = 0.65;
+    // const PITCH_CHANGE_THRESHOLD_SEMITONES = 0.75;
+    // const MIN_NOTE_DURATION_MS = 80;
+    // const MAX_GAP_MS_FOR_MERGE = 100;
+    // const PITCH_DIFF_FOR_MERGE_SEMITONES = 0.5;
+
+    // --- Hyperparameter Signals ---
+    const [confidenceThreshold, setConfidenceThreshold] = createSignal(0.65);
+    const [pitchChangeThreshold, setPitchChangeThreshold] = createSignal(0.75); // semitones
+    const [minNoteDuration, setMinNoteDuration] = createSignal(80); // ms
+    const [maxGapForMerge, setMaxGapForMerge] = createSignal(100); // ms
+    const [pitchDiffForMerge, setPitchDiffForMerge] = createSignal(0.5); // semitones
+    // --- Add Smoothing Signals ---
+    const [smoothingFactor, setSmoothingFactor] = createSignal(0.9); // 0 = none, 0.9 = high
+    const [resetThreshold, setResetThreshold] = createSignal(100); // cents
+    // --- End Smoothing Signals ---
+    // --- End Hyperparameter Signals ---
 
     // Helper to get adjusted time (now - total accumulated pause duration)
     const getAdjustedNow = () => Date.now() - pauseOffset();
@@ -108,7 +125,7 @@ const Demo: Component = () => {
 
         for (let i = 0; i < history.length; i++) {
             const point = history[i]; // point.x is already adjusted time
-            const isVoiced = point.confidence >= CONFIDENCE_THRESHOLD && point.continuousMidi !== null && Number.isFinite(point.continuousMidi);
+            const isVoiced = point.confidence >= confidenceThreshold() && point.continuousMidi !== null && Number.isFinite(point.continuousMidi);
 
             if (isVoiced) {
                 const currentMidi = point.continuousMidi!;
@@ -119,10 +136,10 @@ const Demo: Component = () => {
                     const prevMidi = currentSegmentPoints[currentSegmentPoints.length - 1].continuousMidi;
                     const pitchDiff = Math.abs(currentMidi - prevMidi);
 
-                    if (pitchDiff > PITCH_CHANGE_THRESHOLD_SEMITONES) {
+                    if (pitchDiff > pitchChangeThreshold() * 0.75) {
                         const endTime = currentSegmentPoints[currentSegmentPoints.length - 1].x;
                         const duration = endTime - currentSegmentStartTime!;
-                        if (duration >= MIN_NOTE_DURATION_MS && currentSegmentPoints.length > 0) {
+                        if (duration >= minNoteDuration() && currentSegmentPoints.length > 0) {
                             const sumMidi = currentSegmentPoints.reduce((acc, p) => acc + p.continuousMidi, 0);
                             const sumConfidence = currentSegmentPoints.reduce((acc, p) => acc + p.confidence, 0);
                             potentialSegments.push({
@@ -141,7 +158,7 @@ const Demo: Component = () => {
                 if (currentSegmentPoints.length > 0) {
                     const endTime = currentSegmentPoints[currentSegmentPoints.length - 1].x;
                     const duration = endTime - currentSegmentStartTime!;
-                    if (duration >= MIN_NOTE_DURATION_MS) {
+                    if (duration >= minNoteDuration()) {
                         const sumMidi = currentSegmentPoints.reduce((acc, p) => acc + p.continuousMidi, 0);
                         const sumConfidence = currentSegmentPoints.reduce((acc, p) => acc + p.confidence, 0);
                         potentialSegments.push({
@@ -159,7 +176,7 @@ const Demo: Component = () => {
         if (currentSegmentPoints.length > 0) {
             const endTime = currentSegmentPoints[currentSegmentPoints.length - 1].x;
             const duration = endTime - currentSegmentStartTime!;
-            if (duration >= MIN_NOTE_DURATION_MS) {
+            if (duration >= minNoteDuration()) {
                 const sumMidi = currentSegmentPoints.reduce((acc, p) => acc + p.continuousMidi, 0);
                 const sumConfidence = currentSegmentPoints.reduce((acc, p) => acc + p.confidence, 0);
                 potentialSegments.push({
@@ -183,7 +200,7 @@ const Demo: Component = () => {
 
                 if (prevMidi !== null && currMidi !== null && Number.isFinite(prevMidi) && Number.isFinite(currMidi)) {
                     const pitchDiff = Math.abs(currMidi - prevMidi);
-                    if (gap > 0 && gap < MAX_GAP_MS_FOR_MERGE && pitchDiff < PITCH_DIFF_FOR_MERGE_SEMITONES) {
+                    if (gap > 0 && gap < maxGapForMerge() && pitchDiff < pitchDiffForMerge() * 0.75) {
                         const totalPointsDuration = prev.duration + curr.duration;
                         if (totalPointsDuration > 0) {
                             const weightedAvgMidi = ((prevMidi * prev.duration) + (currMidi * curr.duration)) / totalPointsDuration;
@@ -301,7 +318,11 @@ const Demo: Component = () => {
         // Use dynamic duration here for initial load
         setViewStartTime(now - dynamicViewDurationSeconds() * 1000);
 
-        const options = { smoothingFactor: 0.9, resetThresholdInCents: 100 };
+        // Pass the accessors directly in the options object (no explicit type needed here)
+        const options = {
+            smoothingFactor: smoothingFactor,
+            resetThresholdInCents: resetThreshold
+        };
         serviceInstance = new PitchDetectionService(handlePitchUpdate, handleError, handleModelLoaded, options);
         serviceInstance.initialize();
     };
@@ -376,8 +397,24 @@ const Demo: Component = () => {
         const initialRect = pianoRollContainerRef.getBoundingClientRect();
         setPianoRollWidth(initialRect.width);
 
+        // --- Add Keyboard Listener ---
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key.toLowerCase() === 'd') {
+                // Check if focus is on an input element to avoid toggling while typing
+                if (document.activeElement?.tagName.toLowerCase() !== 'input') {
+                    setShowDebugOverlay(prev => !prev);
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        // --- End Keyboard Listener ---
+
         onCleanup(() => {
             resizeObserver.disconnect();
+            // --- Remove Keyboard Listener ---
+            window.removeEventListener('keydown', handleKeyDown);
+            // --- End Remove ---
         });
         // --- End ResizeObserver ---
     });
@@ -408,6 +445,26 @@ const Demo: Component = () => {
 
     return (
         <div class="flex flex-col h-screen bg-gray-800 font-sans overflow-hidden relative">
+
+            {/* Conditionally render Debug Overlay */}
+            <Show when={showDebugOverlay()}>
+                <DebugOverlay
+                    confidenceThreshold={confidenceThreshold}
+                    pitchChangeThreshold={pitchChangeThreshold}
+                    minNoteDuration={minNoteDuration}
+                    maxGapForMerge={maxGapForMerge}
+                    pitchDiffForMerge={pitchDiffForMerge}
+                    smoothingFactor={smoothingFactor}
+                    resetThreshold={resetThreshold}
+                    setConfidenceThreshold={setConfidenceThreshold}
+                    setPitchChangeThreshold={setPitchChangeThreshold}
+                    setMinNoteDuration={setMinNoteDuration}
+                    setMaxGapForMerge={setMaxGapForMerge}
+                    setPitchDiffForMerge={setPitchDiffForMerge}
+                    setSmoothingFactor={setSmoothingFactor}
+                    setResetThreshold={setResetThreshold}
+                />
+            </Show>
 
             {/* Tooltip Container */}
             <div
