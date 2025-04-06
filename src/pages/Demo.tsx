@@ -90,7 +90,7 @@ const Demo: Component = () => {
     // --- Hyperparameter Signals ---
     const [confidenceThreshold, setConfidenceThreshold] = createSignal(0.65);
     const [pitchChangeThreshold, setPitchChangeThreshold] = createSignal(0.75); // semitones
-    const [minNoteDuration, setMinNoteDuration] = createSignal(80); // ms
+    const [minNoteDuration, setMinNoteDuration] = createSignal(50); // ms
     const [maxGapForMerge, setMaxGapForMerge] = createSignal(100); // ms
     const [pitchDiffForMerge, setPitchDiffForMerge] = createSignal(0.5); // semitones
     // --- Add Smoothing Signals ---
