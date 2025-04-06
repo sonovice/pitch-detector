@@ -9,6 +9,7 @@ interface DebugOverlayProps {
     pitchDiffForMerge: Accessor<number>;
     smoothingFactor: Accessor<number>;
     resetThreshold: Accessor<number>;
+    chartDuration: Accessor<number>;
     // Setters
     setConfidenceThreshold: Setter<number>;
     setPitchChangeThreshold: Setter<number>;
@@ -17,6 +18,7 @@ interface DebugOverlayProps {
     setPitchDiffForMerge: Setter<number>;
     setSmoothingFactor: Setter<number>;
     setResetThreshold: Setter<number>;
+    setChartDuration: Setter<number>;
 }
 
 const DebugOverlay: Component<DebugOverlayProps> = (props) => {
@@ -98,6 +100,16 @@ const DebugOverlay: Component<DebugOverlayProps> = (props) => {
                         type="range" id="resetThreshold" min="0" max="500" step="5"
                         value={props.resetThreshold()}
                         onInput={(e) => handleSliderChange(props.setResetThreshold, e)}
+                        class="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    />
+                </div>
+                {/* Chart Duration */}
+                <div>
+                    <label class="block mb-1 font-medium" for="chartDuration">History Filter Duration ({props.chartDuration()} s)</label>
+                    <input
+                        type="range" id="chartDuration" min="5" max="60" step="1"
+                        value={props.chartDuration()}
+                        onInput={(e) => handleSliderChange(props.setChartDuration, e)}
                         class="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
                     />
                 </div>

@@ -18,7 +18,7 @@ import {
 import type { NoteDetails } from '../utils/midiUtils';
 import { ZoomIn, ZoomOut } from 'lucide-solid';
 
-const CHART_DURATION_SECONDS = 20;
+// const CHART_DURATION_SECONDS = 20; // Convert to signal
 
 const VIEW_DURATION_SECONDS = 20;
 
@@ -96,6 +96,9 @@ const Demo: Component = () => {
     // --- Add Smoothing Signals ---
     const [smoothingFactor, setSmoothingFactor] = createSignal(0.9); // 0 = none, 0.9 = high
     const [resetThreshold, setResetThreshold] = createSignal(100); // cents
+    // --- Add Chart Duration Signal ---
+    const [chartDuration, setChartDuration] = createSignal(20); // seconds
+    // --- End Chart Duration Signal ---
     // --- End Smoothing Signals ---
     // --- End Hyperparameter Signals ---
 
@@ -246,8 +249,8 @@ const Demo: Component = () => {
         // Update pitch history (used for display filtering, relative to adjusted time)
         setPitchHistory(prev => {
             const updated = [...prev, newHistoryPoint];
-            // Filter points older than CHART_DURATION_SECONDS based on adjusted time
-            const cutoff = adjustedNow - (CHART_DURATION_SECONDS * 1000);
+            // Use chartDuration signal here
+            const cutoff = adjustedNow - (chartDuration() * 1000);
             const timeFiltered = updated.filter(p => p.x >= cutoff);
             return timeFiltered;
         });
@@ -399,10 +402,27 @@ const Demo: Component = () => {
 
         // --- Add Keyboard Listener ---
         const handleKeyDown = (event: KeyboardEvent) => {
+            // Toggle Debug Overlay with 'd' - Always toggle regardless of focus
             if (event.key.toLowerCase() === 'd') {
-                // Check if focus is on an input element to avoid toggling while typing
-                if (document.activeElement?.tagName.toLowerCase() !== 'input') {
-                    setShowDebugOverlay(prev => !prev);
+                setShowDebugOverlay(prev => !prev);
+            }
+
+            // Toggle Start/Stop with Space bar
+            if (event.key === ' ') {
+                // Prevent default space bar action (scrolling)
+                event.preventDefault();
+                // Only act if focus is not on an input/textarea
+                const activeTag = document.activeElement?.tagName.toLowerCase();
+                if (activeTag !== 'input' && activeTag !== 'textarea') {
+                    if (isProcessing()) {
+                        stopProcessing();
+                    } else if (isInitializing()) {
+                        // Do nothing if already initializing
+                    } else if (!isServiceReady()) {
+                        initializeAudio(); // Will also set flag to start after init
+                    } else {
+                        startProcessing();
+                    }
                 }
             }
         };
@@ -456,6 +476,7 @@ const Demo: Component = () => {
                     pitchDiffForMerge={pitchDiffForMerge}
                     smoothingFactor={smoothingFactor}
                     resetThreshold={resetThreshold}
+                    chartDuration={chartDuration}
                     setConfidenceThreshold={setConfidenceThreshold}
                     setPitchChangeThreshold={setPitchChangeThreshold}
                     setMinNoteDuration={setMinNoteDuration}
@@ -463,6 +484,7 @@ const Demo: Component = () => {
                     setPitchDiffForMerge={setPitchDiffForMerge}
                     setSmoothingFactor={setSmoothingFactor}
                     setResetThreshold={setResetThreshold}
+                    setChartDuration={setChartDuration}
                 />
             </Show>
 
