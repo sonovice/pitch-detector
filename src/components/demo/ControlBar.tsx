@@ -1,5 +1,5 @@
 import { Component, Show, Accessor } from 'solid-js';
-import { Mic, Square, AlertTriangle } from 'lucide-solid';
+import { Mic, Square, AlertTriangle, ZoomIn, ZoomOut } from 'lucide-solid';
 import type { NoteDetails } from '../../utils/midiUtils'; // Import the type
 import TuningMeter from './TuningMeter';
 
@@ -18,36 +18,32 @@ interface ControlBarProps {
 
 const ControlBar: Component<ControlBarProps> = (props) => {
     return (
-        <footer class="flex-shrink-0 bg-gray-950 px-6 py-3 flex items-center justify-center border-t border-gray-800 relative">
+        <footer class="flex-shrink-0 bg-gray-950 p-4 flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 border-t border-gray-800">
 
-            {/* Left Info Cluster */}
-            <div class="absolute left-6 top-1/2 transform -translate-y-1/2 flex items-center space-x-6 text-sm text-gray-400">
-                {/* Frequency & Note - Added min-width */}
-                <div class="flex items-baseline space-x-1.5 min-w-[220px]">
+            {/* Left Info Cluster - Remove absolute positioning */}
+            {/* Added order-2 md:order-1 to place it first on larger screens */}
+            <div class="flex items-center flex-wrap justify-center md:justify-start space-x-4 md:space-x-6 text-sm text-gray-400 order-2 md:order-1">
+                {/* Frequency & Note */}
+                <div class="flex items-baseline space-x-1.5 min-w-[180px]">
                     <span class="text-gray-500 text-xs uppercase tracking-wider">Pitch</span>
-                    {/* Keep w-24 on frequency span, tabular-nums helps */}
-                    <span class="font-semibold text-lg text-gray-100 tabular-nums w-24 truncate text-left" title={props.pitch() ? `${props.pitch()!.toFixed(1)} Hz` : ''}>
+                    <span class="font-semibold text-lg text-gray-100 tabular-nums w-20 truncate text-left" title={props.pitch() ? `${props.pitch()!.toFixed(1)} Hz` : ''}>
                         {props.pitch() ? `${props.pitch()!.toFixed(1)} Hz` : '--'}
                     </span>
-                    {/* Note name - will take up space within the min-width parent */}
                     <Show when={props.noteDetails()}>
                         <span class="font-medium text-lg text-cyan-400">({props.noteDetails()!.name})</span>
                     </Show>
-                    {/* Add a placeholder span to maintain height when noteDetails is null, though items-baseline should handle this */}
-                    {/* <span class="font-medium text-lg">&nbsp;</span> */}
                 </div>
                 {/* Confidence */}
                 <div class="flex items-baseline space-x-1.5">
                     <span class="text-gray-500 text-xs uppercase tracking-wider">Conf</span>
-                    {/* Added fixed width and text-left */}
                     <span class="font-semibold text-lg text-gray-100 tabular-nums w-12 text-left">
                         {props.confidence() > 0 ? (props.confidence() * 100).toFixed(0) + '%' : '--'}
                     </span>
                 </div>
             </div>
 
-            {/* Center Button */}
-            <div class="flex-shrink-0">
+            {/* Center Button - Added order-1 md:order-2 to place it center on larger screens */}
+            <div class="flex-shrink-0 order-1 md:order-2">
                 <Show
                     when={props.isProcessing()}
                     fallback={
@@ -94,8 +90,9 @@ const ControlBar: Component<ControlBarProps> = (props) => {
                 </Show>
             </div>
 
-            {/* Right Info Cluster */}
-            <div class="absolute right-6 top-1/2 transform -translate-y-1/2 flex items-center space-x-6 text-sm text-gray-400">
+            {/* Right Info Cluster - Remove absolute positioning */}
+            {/* Added order-3 for consistent order */}
+            <div class="flex items-center flex-wrap justify-center md:justify-end space-x-4 md:space-x-6 text-sm text-gray-400 order-3">
                 <TuningMeter noteDetails={props.noteDetails()} />
 
                 <div class="flex items-center space-x-2">

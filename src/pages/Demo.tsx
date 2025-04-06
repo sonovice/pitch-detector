@@ -15,10 +15,17 @@ import {
     getNoteDetails,
 } from '../utils/midiUtils';
 import type { NoteDetails } from '../utils/midiUtils';
+import { ZoomIn, ZoomOut } from 'lucide-solid';
 
 const CHART_DURATION_SECONDS = 20;
 
 const VIEW_DURATION_SECONDS = 20;
+
+// --- Add state for dynamic duration ---
+const INITIAL_PIXELS_PER_SECOND = 60;
+const MIN_PIXELS_PER_SECOND = 10; // Minimum zoom out
+const MAX_PIXELS_PER_SECOND = 200; // Maximum zoom in
+// --- End Add state ---
 
 export interface MidiSegment {
     startTime: number; // timestamp ms (represents adjusted time)
@@ -53,6 +60,15 @@ const Demo: Component = () => {
     const [viewEndTime, setViewEndTime] = createSignal(initialNow);
     const [startAfterInit, setStartAfterInit] = createSignal(false);
 
+    // --- Add state and ref for width ---
+    const [pianoRollWidth, setPianoRollWidth] = createSignal(0);
+    let pianoRollContainerRef: HTMLDivElement | undefined;
+    // --- End add state ---
+
+    // --- Add state for zoom ---
+    const [pixelsPerSecond, setPixelsPerSecond] = createSignal(INITIAL_PIXELS_PER_SECOND);
+    // --- End add state ---
+
     // State for tracking pause time
     const [pauseOffset, setPauseOffset] = createSignal(0);
     const [pauseStartTime, setPauseStartTime] = createSignal(0); // Timestamp when pause started
@@ -68,6 +84,15 @@ const Demo: Component = () => {
 
     // Helper to get adjusted time (now - total accumulated pause duration)
     const getAdjustedNow = () => Date.now() - pauseOffset();
+
+    // --- Calculate dynamic duration --- uses signal now
+    const dynamicViewDurationSeconds = () => {
+        const width = pianoRollWidth();
+        const pps = pixelsPerSecond(); // Use signal value
+        if (width <= 0 || pps <= 0) return VIEW_DURATION_SECONDS; // Fallback
+        return Math.max(1, width / pps); // Ensure minimum duration (e.g., 1 second)
+    };
+    // --- End calculate ---
 
     const generateMidiSegments = (history: PitchHistoryPoint[]) => {
         // This function uses the timestamps already present in history, which are adjusted
@@ -218,7 +243,7 @@ const Demo: Component = () => {
 
         // Update Piano Roll Time Window using ADJUSTED time
         setViewEndTime(adjustedNow);
-        setViewStartTime(adjustedNow - VIEW_DURATION_SECONDS * 1000);
+        setViewStartTime(adjustedNow - dynamicViewDurationSeconds() * 1000);
     };
 
     const handleError = (errorMessage: string) => {
@@ -247,7 +272,8 @@ const Demo: Component = () => {
         // The createEffect also handles this, but setting here ensures it's correct before potential auto-start
         const now = getAdjustedNow();
         setViewEndTime(now);
-        setViewStartTime(now - VIEW_DURATION_SECONDS * 1000);
+        // Use dynamic duration here for initial load
+        setViewStartTime(now - dynamicViewDurationSeconds() * 1000);
 
         if (startAfterInit()) {
             startProcessing(); // Will correctly handle pause state if needed
@@ -272,7 +298,8 @@ const Demo: Component = () => {
         // Initialize view window based on adjusted time (offset is 0 now)
         const now = getAdjustedNow();
         setViewEndTime(now);
-        setViewStartTime(now - VIEW_DURATION_SECONDS * 1000);
+        // Use dynamic duration here for initial load
+        setViewStartTime(now - dynamicViewDurationSeconds() * 1000);
 
         const options = { smoothingFactor: 0.9, resetThresholdInCents: 100 };
         serviceInstance = new PitchDetectionService(handlePitchUpdate, handleError, handleModelLoaded, options);
@@ -319,8 +346,40 @@ const Demo: Component = () => {
         generateMidiSegments(fullPitchHistory());
     };
 
+    // --- Add Zoom Functions ---
+    const zoomIn = () => {
+        setPixelsPerSecond(prev => Math.min(MAX_PIXELS_PER_SECOND, prev * 1.4));
+    };
+
+    const zoomOut = () => {
+        setPixelsPerSecond(prev => Math.max(MIN_PIXELS_PER_SECOND, prev / 1.4));
+    };
+    // --- End Zoom Functions ---
+
     onMount(() => {
         // Initial view window setup handled by initializeAudio/handleModelLoaded
+
+        // --- Add ResizeObserver ---
+        if (!pianoRollContainerRef) return;
+
+        const resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                // Get width, subtracting padding if necessary (depends on box-sizing)
+                const width = entry.contentRect.width;
+                setPianoRollWidth(width);
+            }
+        });
+
+        resizeObserver.observe(pianoRollContainerRef);
+
+        // Set initial width
+        const initialRect = pianoRollContainerRef.getBoundingClientRect();
+        setPianoRollWidth(initialRect.width);
+
+        onCleanup(() => {
+            resizeObserver.disconnect();
+        });
+        // --- End ResizeObserver ---
     });
 
     onCleanup(async () => {
@@ -358,17 +417,40 @@ const Demo: Component = () => {
             ></div>
 
             <main class="flex-grow flex flex-col relative">
-                <div class="flex-grow relative">
+                <div ref={pianoRollContainerRef} class="flex-grow relative">
                     <div class="absolute inset-0 bg-gray-800 overflow-hidden">
                         <PianoRoll
-                            notes={segmentedNotes()} // Pass notes with adjusted time
-                            viewStartTime={viewStartTime()} // Pass view window with adjusted time
-                            viewEndTime={viewEndTime()}     // Pass view window with adjusted time
+                            notes={segmentedNotes()}
+                            viewStartTime={viewStartTime()}
+                            viewEndTime={viewEndTime()}
                             minMidiNote={36}
                             maxMidiNote={84}
                         />
                     </div>
                 </div>
+
+                {/* --- Add Zoom Buttons --- */}
+                <div class="absolute bottom-4 right-4 z-10 flex flex-row space-x-2">
+                    <button
+                        onClick={zoomOut}
+                        class="p-2 rounded-full bg-gray-700/70 text-gray-300 hover:bg-gray-600/90 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-sm"
+                        aria-label="Zoom Out"
+                        title="Zoom Out (Horizontal)"
+                        disabled={pixelsPerSecond() <= MIN_PIXELS_PER_SECOND}
+                    >
+                        <ZoomOut size={20} />
+                    </button>
+                    <button
+                        onClick={zoomIn}
+                        class="p-2 rounded-full bg-gray-700/70 text-gray-300 hover:bg-gray-600/90 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 backdrop-blur-sm"
+                        aria-label="Zoom In"
+                        title="Zoom In (Horizontal)"
+                        disabled={pixelsPerSecond() >= MAX_PIXELS_PER_SECOND}
+                    >
+                        <ZoomIn size={20} />
+                    </button>
+                </div>
+                {/* --- End Zoom Buttons --- */}
             </main>
 
             <ControlBar

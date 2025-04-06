@@ -137,3 +137,4 @@ dist
 
 # music
 .DS_Store
+public/libs/pitch-detection/pitchForwarderProcessor.js
